@@ -1,0 +1,40 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+build
+release
+release-admin
+mac/build-mac
+mac/release-mac
+Extracted
+*.zip
+*.local
+.gofile-token
+.goflix-cache
+.env
+.env.local
+
+# Discord community ops material (announcements, member DMs, guide
+# screenshots) — not part of the app itself, kept locally rather than
+# in the repo other collaborators pull from.
+discord
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

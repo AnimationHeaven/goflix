@@ -1,0 +1,43 @@
+{
+  "name": "goflix",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n server,web -c cyan,magenta \"npm run dev:server\" \"npm run dev:web\"",
+    "dev:web": "vite",
+    "dev:server": "tsx watch --env-file=.env server/index.ts",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "start": "tsx --env-file=.env server/index.ts",
+    "lint": "oxlint",
+    "package:exe": "node scripts/package-exe.mjs",
+    "package:mac": "node mac/package-app-mac.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-virtual": "^3.14.9",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@oxlint/binding-win32-x64-msvc": "^1.78.0",
+    "@rolldown/binding-win32-x64-msvc": "^1.2.4",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "concurrently": "^10.0.4",
+    "oxlint": "^1.75.0",
+    "postject": "^1.0.0-alpha.6",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.7",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0"
+  }
+}

@@ -132,7 +132,7 @@ const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const UP_NEXT_SECONDS = 8;
 
 function VideoPlayer({ item, queue, folderId, onClose, onPlayNext }: PlayerProps) {
-  const { next } = queueNeighbors(queue, item);
+  const { prev, next } = queueNeighbors(queue, item);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(true);
@@ -371,6 +371,37 @@ function VideoPlayer({ item, queue, folderId, onClose, onPlayNext }: PlayerProps
         }}
       />
 
+      {prev && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            persist();
+            onPlayNext(prev);
+          }}
+          className={`absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-3 text-xl text-white transition hover:bg-black/70 ${
+            showControls ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        >
+          ‹
+        </button>
+      )}
+      {next && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            persist();
+            onPlayNext(next);
+          }}
+          className={`absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-3 text-xl text-white transition hover:bg-black/70 ${
+            showControls ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        >
+          ›
+        </button>
+      )}
+
       <div
         className={`pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between px-4 py-3 transition ${
           showControls ? 'opacity-100' : 'opacity-0'
@@ -446,7 +477,7 @@ function VideoPlayer({ item, queue, folderId, onClose, onPlayNext }: PlayerProps
           }}
           className="w-full accent-accent"
         />
-        <div className="flex items-center gap-3 text-sm text-white">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-white">
           <button type="button" onClick={togglePlay} className="text-lg">
             {playing ? '⏸' : '▶'}
           </button>
@@ -477,7 +508,7 @@ function VideoPlayer({ item, queue, folderId, onClose, onPlayNext }: PlayerProps
                 v.volume = Number(e.target.value);
                 v.muted = Number(e.target.value) === 0;
               }}
-              className="w-20 accent-accent"
+              className="w-14 accent-accent sm:w-20"
             />
           </div>
 

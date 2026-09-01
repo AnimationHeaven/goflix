@@ -16,7 +16,7 @@ const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const LANG = 'en-US';
 const WT_SALT = process.env.GOFILE_WT_SALT ?? '9844d94d963d30';
-const CACHE_TTL_MS = 2 * 60 * 1000;
+const CACHE_TTL_MS = 10 * 60 * 1000;
 const TOKEN_FILE = join(process.cwd(), '.gofile-token');
 const CACHE_DIR = join(process.cwd(), '.goflix-cache');
 const VIDEO_EXTENSIONS = new Set([
@@ -50,7 +50,20 @@ const GIF_EXTENSION = 'gif';
 // hammer Gofile's guest rate limiter or balloon memory.
 const FLATTEN_MAX_FOLDERS = 60;
 const FLATTEN_MAX_FILES = 4000;
-const FLATTEN_CONCURRENCY = 4;
+const FLATTEN_CONCURRENCY = 3;
+// Paced even on the happy path — spreads requests out instead of firing
+// batches back-to-back, so a big collection stays under Gofile's radar
+// rather than reacting only after it's already been rate-limited once.
+const FLATTEN_BATCH_DELAY_MS = 250;
+// A folder that gets rate-limited is retried (after backing off) rather
+// than silently dropped, but not forever — past this many attempts it's
+// left for the next full walk instead, so one stubborn folder can't stall
+// the rest of the collection.
+const FLATTEN_MAX_RETRIES_PER_FOLDER = 4;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 interface CacheEntry {
   expires: number;
@@ -490,24 +503,59 @@ export async function streamFolderFlat(
   consume(rootData, true);
   visitedFolders = 1;
 
+  const retryCounts = new Map<string, number>();
+  let backoffMs = 0;
+
   while (
     queue.length > 0 &&
     visitedFolders < FLATTEN_MAX_FOLDERS &&
     allFiles.length < FLATTEN_MAX_FILES
   ) {
+    if (backoffMs > 0) await sleep(backoffMs);
+
     const batch = queue.splice(0, FLATTEN_CONCURRENCY);
     const results = await Promise.allSettled(
       batch.map((id) => fetchFolderRaw(id, passwordHash, accountToken)),
     );
+    let hitRateLimit = false;
     for (let i = 0; i < results.length; i++) {
       const result = results[i]!;
       const folderId = batch[i]!;
-      visitedFolders += 1;
       if (result.status === 'fulfilled' && result.value.type === 'folder') {
+        visitedFolders += 1;
         consume(result.value, false);
         scannedFolderIds.add(folderId);
+        continue;
+      }
+      const rateLimited =
+        result.status === 'rejected' &&
+        result.reason instanceof GofileApiError &&
+        result.reason.code === 'rate_limited';
+      const attempts = (retryCounts.get(folderId) ?? 0) + 1;
+      if (rateLimited && attempts <= FLATTEN_MAX_RETRIES_PER_FOLDER) {
+        retryCounts.set(folderId, attempts);
+        queue.push(folderId); // retry after backing off, instead of dropping it
+        hitRateLimit = true;
+      } else {
+        // Non-rate-limit failure, or a folder that's used up its retries —
+        // leave it unscanned so the next full walk (a later launch) picks
+        // it back up, rather than looping on it forever right now.
+        visitedFolders += 1;
       }
     }
+    backoffMs = hitRateLimit ? Math.min((backoffMs || 1000) * 2, 15_000) : FLATTEN_BATCH_DELAY_MS;
+
+    // Persisted incrementally (not just once at the end) so a walk that
+    // gets interrupted — closed tab, rate-limit gives up early, process
+    // restart — keeps whatever progress it already made instead of
+    // re-fetching the same already-scanned folders all over again next time.
+    saveFlattenCache(contentId, {
+      version: 1,
+      rootName,
+      files: allFiles,
+      scannedFolderIds: [...scannedFolderIds],
+      updatedAt: Date.now(),
+    });
   }
 
   // Cached copy is sorted for a clean instant replay; live stream order

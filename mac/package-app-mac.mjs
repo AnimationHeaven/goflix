@@ -73,6 +73,26 @@ mkdirSync(macosDir, { recursive: true });
 copyFileSync(process.execPath, exePath);
 chmodSync(exePath, 0o755);
 
+// postject/Node's SEA injection can't handle a universal ("fat") binary —
+// it finds the fuse sentinel once per architecture slice and aborts with
+// "Multiple occurences of sentinel ... found in the binary". macOS's
+// official Node.js installer (and Homebrew) ship node as a universal
+// binary covering both Intel and Apple Silicon, so this hits by default
+// on a real Mac. Thin it down to just the current machine's architecture
+// first — harmless no-op if it's already single-arch.
+{
+  const archs = execSync(`lipo -archs "${exePath}"`, { cwd: root }).toString().trim().split(/\s+/);
+  if (archs.length > 1) {
+    const targetArch = process.arch === 'arm64' ? 'arm64' : 'x86_64';
+    console.log(
+      `  Universal binary detected (${archs.join(', ')}) — thinning to ${targetArch} ` +
+        '(postject/SEA only supports a single architecture)...',
+    );
+    run(`lipo -thin ${targetArch} -output "${exePath}" "${exePath}"`);
+    chmodSync(exePath, 0o755);
+  }
+}
+
 // A .app bundle launched by double-click (Finder → LaunchServices) never
 // attaches a Terminal, regardless of whether the binary is a "console"
 // program — unlike Windows there's no PE-subsystem-style flag to patch.

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A rounded play glyph reads instantly as "video app" (unlike a bare
+     letterform), with a red gradient fill and a soft top-edge highlight for
+     a glossy, finished look rather than a flat colour block. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M40,33 L40,75 Q40,81 45.05,77.75 L76.95,57.25 Q82,54 76.95,50.75 L45.05,30.25 Q40,27 40,33 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="35"
+                android:startY="22"
+                android:endX="86"
+                android:endY="86"
+                android:startColor="#FF3B4C"
+                android:endColor="#AD060F" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M45.05,30.25 L40,33 L40,44"
+        android:strokeColor="#40FFFFFF"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

@@ -121,10 +121,20 @@ export default function App() {
     setPasswordHash(undefined);
   };
 
+  // Wired into the browser History API (below) so the Android app's
+  // hardware/gesture back button — which only ever calls webView.goBack(),
+  // see MainActivity.kt — has actual in-app navigation to step through
+  // instead of immediately exiting the whole app from inside any folder.
+  interface NavState {
+    rootId: string | null;
+    trail: BreadcrumbEntry[];
+  }
+
   const handleLoad = (id: string, name?: string) => {
     resetBrowsingState();
     setRootId(id);
     setTrail([]);
+    history.pushState({ rootId: id, trail: [] } satisfies NavState, '');
     if (name && buildMode === 'admin') pushRecentFolder({ id, name });
   };
 
@@ -142,25 +152,49 @@ export default function App() {
     setRootId(null);
     setTrail([]);
     resetBrowsingState();
+    history.pushState({ rootId: null, trail: [] } satisfies NavState, '');
   };
 
   const openFolder = (id: string, name: string) => {
-    setTrail((t) => [...t, { id, name }]);
+    const nextTrail = [...trail, { id, name }];
+    setTrail(nextTrail);
     setFlatten(false);
     setRescanToken(0);
     setFavoritesOnly(false);
     setShuffle(false);
     setSearch('');
+    history.pushState({ rootId, trail: nextTrail } satisfies NavState, '');
   };
 
   const navigateBreadcrumb = (_id: string, index: number) => {
-    setTrail((t) => t.slice(0, index + 1));
+    const nextTrail = trail.slice(0, index + 1);
+    setTrail(nextTrail);
     setFlatten(false);
     setRescanToken(0);
     setFavoritesOnly(false);
     setShuffle(false);
     setSearch('');
+    history.pushState({ rootId, trail: nextTrail } satisfies NavState, '');
   };
+
+  // Restores state on browser/Android back-navigation — this is what makes
+  // the pushState calls above actually do something, rather than just
+  // silently padding the history stack.
+  useEffect(() => {
+    history.replaceState({ rootId: null, trail: [] } satisfies NavState, '');
+    const onPopState = (e: PopStateEvent) => {
+      const state = e.state as NavState | null;
+      setRootId(state?.rootId ?? null);
+      setTrail(state?.trail ?? []);
+      setFlatten(false);
+      setRescanToken(0);
+      setFavoritesOnly(false);
+      setShuffle(false);
+      setSearch('');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const handleRescan = () => setRescanToken((t) => t + 1);
 

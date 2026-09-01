@@ -13,8 +13,16 @@ dist-ssr
 build
 release
 release-admin
+release-artifacts
 mac/build-mac
 mac/release-mac
+android/.gradle
+android/local.properties
+android/app/build
+android/app/.cxx
+android/app/src/main/assets/nodejs-project
+android/app/libnode
+android/*.apk
 Extracted
 *.zip
 *.local

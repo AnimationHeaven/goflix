@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { parseGofileId } from '../lib/gofileParse';
 import { getGofileToken, getRecentFolders } from '../lib/storage';
 import { useMyLibrary } from '../hooks/useMyLibrary';
@@ -14,12 +14,24 @@ interface Props {
   onStopServer?: () => void;
 }
 
+// Every Gofile folder link shares this exact prefix, so it's pre-filled
+// rather than something the user has to type (or re-type after a mobile
+// keyboard's autocapitalize mangles the "h" — see the input's own
+// autoCapitalize="off" below, which stops that at the source too).
+const LINK_PREFIX = 'https://gofile.io/d/';
+
 export function LandingInput({ onLoad, loading, errorMessage, onTokenChange, onStopServer }: Props) {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(LINK_PREFIX);
   const [localError, setLocalError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [tokenTick, setTokenTick] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (el) el.setSelectionRange(el.value.length, el.value.length);
+  }, []);
 
   const token = getGofileToken();
   const library = useMyLibrary(token);
@@ -84,6 +96,7 @@ export function LandingInput({ onLoad, loading, errorMessage, onTokenChange, onS
 
       <div className="mt-8 flex w-full max-w-lg gap-2">
         <input
+          ref={inputRef}
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -91,6 +104,10 @@ export function LandingInput({ onLoad, loading, errorMessage, onTokenChange, onS
             if (e.key === 'Enter') submit();
           }}
           placeholder="https://gofile.io/d/XXXXXX"
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
           className="flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-accent"
         />
         <button

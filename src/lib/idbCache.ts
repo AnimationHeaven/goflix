@@ -6,8 +6,8 @@
  * never a requirement for the app to function.
  */
 const DB_NAME = 'goflix-cache';
-const DB_VERSION = 2;
-const STORES = ['thumbnails', 'durations', 'resolutions'] as const;
+const DB_VERSION = 3;
+const STORES = ['thumbnails', 'durations', 'resolutions', 'collectionPreviews'] as const;
 export type StoreName = (typeof STORES)[number];
 const MAX_ENTRIES_PER_STORE = 3000;
 const PRUNE_EVERY_N_WRITES = 25;

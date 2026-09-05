@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { clearGofileToken, getGofileToken, setGofileToken } from '../lib/storage';
+import { PasteButton } from './PasteButton';
 
 interface Props {
   open: boolean;
@@ -46,17 +47,20 @@ export function TokenSettings({ open, onClose, onSaved }: Props) {
           requires sign-in, using the same permissions as your Gofile account.
         </p>
 
-        <input
-          type="password"
-          autoFocus
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSave();
-          }}
-          placeholder="Paste your Gofile API token"
-          className="mt-4 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-accent"
-        />
+        <div className="mt-4 flex gap-2">
+          <input
+            type="password"
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave();
+            }}
+            placeholder="Paste your Gofile API token"
+            className="flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-accent"
+          />
+          <PasteButton onPaste={setValue} className="rounded-md border border-zinc-700 px-3 text-sm text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-800 hover:text-white" />
+        </div>
 
         <p className="mt-2 text-xs text-zinc-500">
           Found under your Gofile profile settings. Stored only in this browser's local storage —

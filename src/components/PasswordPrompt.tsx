@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PasteButton } from './PasteButton';
 
 interface Props {
   wrongPassword: boolean;
@@ -23,17 +24,20 @@ export function PasswordPrompt({ wrongPassword, busy, onSubmit, onCancel }: Prop
           This folder is password-protected. Enter the password to continue.
         </p>
 
-        <input
-          type="password"
-          autoFocus
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submit();
-          }}
-          placeholder="Folder password"
-          className="mt-4 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-accent"
-        />
+        <div className="mt-4 flex gap-2">
+          <input
+            type="password"
+            autoFocus
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submit();
+            }}
+            placeholder="Folder password"
+            className="flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-accent"
+          />
+          <PasteButton onPaste={setPassword} className="rounded-md border border-zinc-700 px-3 text-sm text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-800 hover:text-white" />
+        </div>
 
         {wrongPassword && (
           <p className="mt-2 text-xs text-accent">Incorrect password. Try again.</p>

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useInView } from '../hooks/useInView';
 import { useThumbnail } from '../hooks/useThumbnail';
 import { useFavorites } from '../hooks/useFavorites';
 import { useWatched } from '../hooks/useWatched';
-import { getCachedDuration, getCachedResolution } from '../lib/durationCache';
+import { getCachedDuration, getCachedResolution, queueDurationProbe } from '../lib/durationCache';
 import { buildStreamSrc, isBrowserPlayable, mediaKind } from '../lib/media';
 import { formatBytes, formatDuration, stripExtension } from '../lib/gofileParse';
 import type { NormalizedItem, WatchProgress } from '../types';
@@ -36,6 +36,16 @@ export function PosterCard({ item, progress, onPlay, priority, blurMode }: Props
   const watched = kind === 'video' && isWatched(item.id);
   const knownDuration = progress?.duration ?? (kind === 'video' ? getCachedDuration(item.id) : undefined);
   const resolution = kind === 'video' ? getCachedResolution(item.id) : undefined;
+
+  // Duration/resolution aren't in Gofile's folder listing — probing is the
+  // only way to get them. Queued here, gated on inView, rather than eagerly
+  // for a whole folder's worth of videos: a big flattened library can be
+  // thousands of items, and firing a metadata request at Gofile for every
+  // one of them regardless of what's actually on screen is exactly the kind
+  // of quota-burning "leakage" that hits even a premium account's rate limit.
+  useEffect(() => {
+    if (kind === 'video' && inView && knownDuration == null) queueDurationProbe(item);
+  }, [kind, inView, knownDuration, item]);
 
   const blurred = Boolean(blurMode) && !revealed;
   const showLiveGif = isGif && hovering && inView;

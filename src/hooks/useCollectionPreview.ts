@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { buildAssetSrc, buildStreamSrc, mediaKind } from '../lib/media';
 import { getGofileToken } from '../lib/storage';
+import { idbGetAll, idbPut } from '../lib/idbCache';
 import type { FolderResponse } from '../types';
 
 interface Preview {
@@ -11,6 +12,16 @@ interface Preview {
 
 const INITIAL: Preview = { thumbnailSrc: null, itemCount: null, loading: false };
 const cache = new Map<string, Preview>();
+
+// Persisted across reloads/app restarts — without this, revisiting "Your
+// Library" (easily 100+ collections) after the server's in-memory cache has
+// expired re-fetches every single preview from Gofile again, purely to
+// re-render a thumbnail the user has already seen. That's the same kind of
+// avoidable quota "leakage" as the duration-probe issue, just triggered by
+// time passing instead of a big folder.
+void idbGetAll<Preview>('collectionPreviews').then((entries) => {
+  for (const [id, preview] of entries) if (!cache.has(id)) cache.set(id, preview);
+});
 
 /** Lightweight one-level peek into a collection folder for the list-view
  * Collections row — just enough to show an item count and a representative
@@ -55,6 +66,7 @@ export function useCollectionPreview(folderId: string, enabled: boolean): Previe
           loading: false,
         };
         cache.set(folderId, result);
+        idbPut('collectionPreviews', folderId, result);
         setState(result);
       })
       .catch(() => {

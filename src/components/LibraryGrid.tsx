@@ -291,7 +291,7 @@ export function LibraryGrid({
   const activeGifs = filters.gif ? gifs : [];
   const activeOthers = filters.other ? others : [];
 
-  const durationProgress = useVideoDurations(activeVideos, isDurationSort(sort));
+  const durationProgress = useVideoDurations(activeVideos);
 
   const orderedVideos = useFilteredOrdered(
     activeVideos,

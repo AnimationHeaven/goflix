@@ -5,6 +5,7 @@ import { useMyLibrary } from '../hooks/useMyLibrary';
 import { useBuildMode } from '../hooks/useBuildMode';
 import { TokenSettings } from './TokenSettings';
 import { GuideModal } from './GuideModal';
+import { PasteButton } from './PasteButton';
 
 interface Props {
   onLoad: (id: string, name?: string) => void;
@@ -109,6 +110,16 @@ export function LandingInput({ onLoad, loading, errorMessage, onTokenChange, onS
           autoComplete="off"
           spellCheck={false}
           className="flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-accent"
+        />
+        <PasteButton
+          onPaste={(text) => {
+            setValue(text);
+            setLocalError(null);
+            requestAnimationFrame(() => {
+              const el = inputRef.current;
+              if (el) el.setSelectionRange(el.value.length, el.value.length);
+            });
+          }}
         />
         <button
           type="button"

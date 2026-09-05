@@ -39,12 +39,17 @@ export type GofileErrorCode =
 export class GofileApiError extends Error {
   code: GofileErrorCode;
   status: number;
+  /** Gofile's own Retry-After hint (ms) when it sent one on a 429 — lets
+   * callers back off by exactly as long as Gofile actually asked for,
+   * instead of guessing. */
+  retryAfterMs?: number;
 
-  constructor(code: GofileErrorCode, message: string, status = 400) {
+  constructor(code: GofileErrorCode, message: string, status = 400, retryAfterMs?: number) {
     super(message);
     this.name = 'GofileApiError';
     this.code = code;
     this.status = status;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 

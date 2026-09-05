@@ -249,10 +249,17 @@ async function apiFetch<T = GofileApiResponse>(
   }
 
   if (res.status === 429) {
+    // Retry-After is normally a count of seconds; a small minority of
+    // servers send an HTTP-date instead, which the seconds parse below
+    // rejects (NaN) and we fall back to no hint rather than guess wrong.
+    const header = res.headers.get('retry-after');
+    const seconds = header ? Number(header) : NaN;
+    const retryAfterMs = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined;
     throw new GofileApiError(
       'rate_limited',
       'Gofile is rate-limiting requests. Hang tight and try again shortly.',
       429,
+      retryAfterMs,
     );
   }
 
@@ -518,6 +525,7 @@ export async function streamFolderFlat(
       batch.map((id) => fetchFolderRaw(id, passwordHash, accountToken)),
     );
     let hitRateLimit = false;
+    let hintedRetryAfterMs = 0;
     for (let i = 0; i < results.length; i++) {
       const result = results[i]!;
       const folderId = batch[i]!;
@@ -536,6 +544,8 @@ export async function streamFolderFlat(
         retryCounts.set(folderId, attempts);
         queue.push(folderId); // retry after backing off, instead of dropping it
         hitRateLimit = true;
+        const hint = (result.reason as GofileApiError).retryAfterMs;
+        if (hint && hint > hintedRetryAfterMs) hintedRetryAfterMs = hint;
       } else {
         // Non-rate-limit failure, or a folder that's used up its retries —
         // leave it unscanned so the next full walk (a later launch) picks
@@ -543,7 +553,12 @@ export async function streamFolderFlat(
         visitedFolders += 1;
       }
     }
-    backoffMs = hitRateLimit ? Math.min((backoffMs || 1000) * 2, 15_000) : FLATTEN_BATCH_DELAY_MS;
+    // Gofile telling us exactly how long to wait beats guessing — trust it
+    // over our own exponential schedule when it sends one, capped the same
+    // as the fallback so one huge hint can't stall the whole walk for minutes.
+    backoffMs = hitRateLimit
+      ? Math.min(hintedRetryAfterMs || (backoffMs || 1000) * 2, 15_000)
+      : FLATTEN_BATCH_DELAY_MS;
 
     // Persisted incrementally (not just once at the end) so a walk that
     // gets interrupted — closed tab, rate-limit gives up early, process
@@ -631,7 +646,7 @@ interface GofileAccountResponse {
  */
 export async function resolveAccountRoot(
   clientAccountToken?: string,
-): Promise<{ rootFolderId: string; email?: string }> {
+): Promise<{ rootFolderId: string; email?: string; tier?: string }> {
   const accountToken = clientAccountToken?.trim() || process.env.GOFILE_TOKEN?.trim();
   if (!accountToken) {
     throw new GofileApiError('unauthorized', 'No Gofile account token configured.', 400);
@@ -655,7 +670,11 @@ export async function resolveAccountRoot(
     throw mapStatusToError(accountBody.status || 'unknown');
   }
 
-  return { rootFolderId: accountBody.data.rootFolder, email: accountBody.data.email };
+  return {
+    rootFolderId: accountBody.data.rootFolder,
+    email: accountBody.data.email,
+    tier: accountBody.data.tier,
+  };
 }
 
 export function clearFolderCache(): void {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { clearGofileToken, getGofileToken, setGofileToken } from '../lib/storage';
+import { useMyLibrary } from '../hooks/useMyLibrary';
 import { PasteButton } from './PasteButton';
 
 interface Props {
@@ -14,6 +15,13 @@ export function TokenSettings({ open, onClose, onSaved }: Props) {
   useEffect(() => {
     if (open) setValue(getGofileToken());
   }, [open]);
+
+  // Checks the token that's actually saved, not whatever's mid-edit in the
+  // field — re-validating on every keystroke would burn a Gofile request
+  // per character typed, exactly the kind of waste this whole pass is about
+  // avoiding. Only re-checks when the modal opens.
+  const savedToken = open ? getGofileToken() : '';
+  const status = useMyLibrary(savedToken);
 
   if (!open) return null;
 
@@ -46,6 +54,23 @@ export function TokenSettings({ open, onClose, onSaved }: Props) {
           Adding your account token lets GoFlix access private folders and content that
           requires sign-in, using the same permissions as your Gofile account.
         </p>
+
+        {savedToken && (
+          <p className="mt-3 text-xs">
+            {status.loading ? (
+              <span className="text-zinc-500">Checking token…</span>
+            ) : status.library ? (
+              <span className="text-emerald-400">
+                ✓ Signed in{status.library.email ? ` as ${status.library.email}` : ''}
+                {status.library.tier
+                  ? ` · ${status.library.tier[0]!.toUpperCase()}${status.library.tier.slice(1)} account`
+                  : ''}
+              </span>
+            ) : status.error ? (
+              <span className="text-accent">✕ {status.error}</span>
+            ) : null}
+          </p>
+        )}
 
         <div className="mt-4 flex gap-2">
           <input

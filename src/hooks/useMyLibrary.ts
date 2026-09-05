@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 interface MyLibrary {
   rootFolderId: string;
   email?: string;
+  tier?: string;
 }
 
 interface State {
@@ -31,12 +32,12 @@ export function useMyLibrary(token: string): State {
     fetch('/api/account/root', { headers: { 'X-Gofile-Token': token } })
       .then(async (res) => {
         const body = (await res.json().catch(() => null)) as
-          | { rootFolderId?: string; email?: string; message?: string }
+          | { rootFolderId?: string; email?: string; tier?: string; message?: string }
           | null;
         if (!res.ok || !body?.rootFolderId) {
           throw new Error(body?.message ?? 'Could not load your library.');
         }
-        return { rootFolderId: body.rootFolderId, email: body.email };
+        return { rootFolderId: body.rootFolderId, email: body.email, tier: body.tier };
       })
       .then((library) => {
         if (!cancelled) setState({ library, loading: false, error: null });

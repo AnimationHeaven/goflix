@@ -259,10 +259,32 @@ export default function App() {
   };
 
   const isRateLimited = queryError instanceof FolderFetchError && queryError.code === 'rate_limited';
+
+  // A bare "hang tight and try again shortly" reads as stuck once it's been
+  // sitting there for more than a few seconds — showing Gofile's own actual
+  // Retry-After countdown (when it sent one) makes clear the app is doing
+  // something, not frozen.
+  const [retryCountdownS, setRetryCountdownS] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isRateLimited) {
+      setRetryCountdownS(null);
+      return;
+    }
+    const ms = (queryError as FolderFetchError).retryAfterMs ?? 5000;
+    setRetryCountdownS(Math.ceil(ms / 1000));
+    const id = window.setInterval(() => {
+      setRetryCountdownS((s) => (s == null || s <= 1 ? 0 : s - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-arm only when the error itself changes, not on every render
+  }, [queryError, isRateLimited]);
+
   const errorBanner =
     queryError && !needPassword
       ? queryError instanceof FolderFetchError
-        ? queryError.message
+        ? isRateLimited && retryCountdownS != null && retryCountdownS > 0
+          ? `${queryError.message} Retrying in ${retryCountdownS}s…`
+          : queryError.message
         : 'Something went wrong loading this folder.'
       : null;
 

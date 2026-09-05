@@ -21,11 +21,13 @@ function clientToken(req: { headers: Record<string, unknown> }): string | undefi
  */
 router.get('/root', async (req, res) => {
   try {
-    const { rootFolderId, email } = await resolveAccountRoot(clientToken(req));
-    res.json({ rootFolderId, email });
+    const { rootFolderId, email, tier } = await resolveAccountRoot(clientToken(req));
+    res.json({ rootFolderId, email, tier });
   } catch (err) {
     if (err instanceof GofileApiError) {
-      res.status(err.status).json({ error: err.code, message: err.message });
+      res
+        .status(err.status)
+        .json({ error: err.code, message: err.message, retryAfterMs: err.retryAfterMs });
       return;
     }
     console.error('[account] unexpected error', err);

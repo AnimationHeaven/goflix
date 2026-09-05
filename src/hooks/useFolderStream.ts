@@ -6,7 +6,7 @@ import type { ApiErrorBody, ApiErrorCode, NormalizedItem } from '../types';
 type StreamMessage =
   | { type: 'batch'; items: NormalizedItem[] }
   | { type: 'done'; id: string; name: string }
-  | { type: 'error'; error: ApiErrorCode; message: string };
+  | { type: 'error'; error: ApiErrorCode; message: string; retryAfterMs?: number };
 
 interface StreamState {
   items: NormalizedItem[];
@@ -77,6 +77,7 @@ export function useFolderStream(
             body?.error ?? 'unknown',
             body?.message ?? `Request failed (${res.status})`,
             res.status,
+            body?.retryAfterMs,
           );
         }
 
@@ -101,7 +102,7 @@ export function useFolderStream(
             } else if (msg.type === 'done') {
               setState((s) => ({ ...s, name: msg.name, isLoading: false, isDone: true }));
             } else {
-              throw new FolderFetchError(msg.error, msg.message, 502);
+              throw new FolderFetchError(msg.error, msg.message, 502, msg.retryAfterMs);
             }
           }
         }

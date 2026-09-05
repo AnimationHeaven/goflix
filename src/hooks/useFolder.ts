@@ -31,6 +31,7 @@ async function fetchFolder(
       body?.error ?? 'unknown',
       body?.message ?? `Request failed (${res.status})`,
       res.status,
+      body?.retryAfterMs,
     );
   }
 
@@ -64,6 +65,10 @@ export function useFolder(id: string | null, passwordHash?: string, accountToken
       return failureCount < 1;
     },
     retryDelay: (attempt, error) => {
+      // Gofile telling us exactly how long to wait beats guessing.
+      if (error instanceof FolderFetchError && error.retryAfterMs) {
+        return Math.min(error.retryAfterMs, 20_000);
+      }
       const base =
         error instanceof FolderFetchError && error.code === 'rate_limited' ? 5000 : 2000;
       return Math.min(base * 2 ** attempt, 20_000);

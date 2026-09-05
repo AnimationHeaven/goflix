@@ -142,7 +142,9 @@ router.get('/:fileId', async (req, res) => {
     await pump();
   } catch (err) {
     if (err instanceof GofileApiError) {
-      res.status(err.status).json({ error: err.code, message: err.message });
+      res
+        .status(err.status)
+        .json({ error: err.code, message: err.message, retryAfterMs: err.retryAfterMs });
       return;
     }
     console.error('[stream] unexpected error', err);

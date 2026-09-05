@@ -37,6 +37,7 @@ router.get('/:id', async (req, res) => {
       res.status(err.status).json({
         error: err.code,
         message: err.message,
+        retryAfterMs: err.retryAfterMs,
       });
       return;
     }
@@ -102,7 +103,9 @@ router.get('/:id/stream', async (req, res) => {
   } catch (err) {
     if (!sentAny) {
       if (err instanceof GofileApiError) {
-        res.status(err.status).json({ error: err.code, message: err.message });
+        res
+          .status(err.status)
+          .json({ error: err.code, message: err.message, retryAfterMs: err.retryAfterMs });
         return;
       }
       console.error('[folder/stream] unexpected error', err);
@@ -116,7 +119,8 @@ router.get('/:id/stream', async (req, res) => {
     const code = err instanceof GofileApiError ? err.code : 'unknown';
     const message =
       err instanceof GofileApiError ? err.message : 'Failed while streaming folder contents.';
-    res.write(`${JSON.stringify({ type: 'error', error: code, message })}\n`);
+    const retryAfterMs = err instanceof GofileApiError ? err.retryAfterMs : undefined;
+    res.write(`${JSON.stringify({ type: 'error', error: code, message, retryAfterMs })}\n`);
     res.end();
   }
 });

@@ -40,17 +40,21 @@ export type ApiErrorCode =
 export interface ApiErrorBody {
   error: ApiErrorCode;
   message: string;
+  retryAfterMs?: number;
 }
 
 export class FolderFetchError extends Error {
   code: ApiErrorCode;
   status: number;
+  /** Gofile's own Retry-After hint (ms), when it sent one on a 429. */
+  retryAfterMs?: number;
 
-  constructor(code: ApiErrorCode, message: string, status: number) {
+  constructor(code: ApiErrorCode, message: string, status: number, retryAfterMs?: number) {
     super(message);
     this.name = 'FolderFetchError';
     this.code = code;
     this.status = status;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 

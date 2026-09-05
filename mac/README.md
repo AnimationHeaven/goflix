@@ -12,10 +12,12 @@ cross-compiling it from Windows or Linux — the macOS build has to run
 where a real macOS `node` binary exists: on a Mac, or a macOS CI runner
 (e.g. a GitHub Actions `macos-latest` job).
 
-**Untested against real hardware.** This was written and reasoned through
-against Node's documented SEA + postject support for macOS, but there was
-no Mac available to actually run it while building it. Treat the first
-run as a test, not a known-good build.
+**Verified working** on real Apple Silicon hardware. One real issue turned
+up and is already handled: macOS ships `node` as a universal (fat) binary,
+and postject's SEA injection can't handle that — it finds the injection
+marker once per architecture slice and aborts with "Multiple occurences of
+sentinel ... found in the binary". The script thins the binary to the
+current machine's architecture first to work around it.
 
 ## Building it
 
@@ -33,9 +35,23 @@ helper). Copy the whole `release-mac` folder to any Mac.
 ## First launch
 
 The app is unsigned (no paid Apple Developer ID), so Gatekeeper will
-refuse a normal double-click the first time with an "unidentified
-developer" warning. Right-click `GoFlix.app` → **Open** → **Open** once —
-after that, it opens normally like any other app.
+refuse a normal double-click the first time. Which warning you get depends
+on how you got the file:
+
+- **Built it yourself** (ran `node package-app-mac.mjs` locally) — you'll
+  get the milder "unidentified developer" warning. Right-click
+  `GoFlix.app` → **Open** → **Open** once, and it opens normally from then
+  on.
+- **Downloaded the zip through a browser** (e.g. from a GitHub Release) —
+  the browser tags it with a quarantine flag, and Gatekeeper instead
+  refuses with **"GoFlix is damaged and can't be opened."** This is not
+  actual corruption and right-click → Open won't fix it — the quarantine
+  flag needs to be stripped first:
+  ```bash
+  xattr -cr /path/to/GoFlix.app
+  ```
+  (type `xattr -cr ` in Terminal, then drag `GoFlix.app` into the window
+  to fill in the path). After that it opens normally.
 
 ## Account token (admin build)
 

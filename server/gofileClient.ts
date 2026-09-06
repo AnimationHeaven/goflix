@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import type {
   FolderResponse,
@@ -47,9 +55,15 @@ const IMAGE_EXTENSIONS = new Set([
 const GIF_EXTENSION = 'gif';
 
 // Recursive "flatten subfolders" fetch is bounded so a deep/huge tree can't
-// hammer Gofile's guest rate limiter or balloon memory.
-const FLATTEN_MAX_FOLDERS = 60;
-const FLATTEN_MAX_FILES = 4000;
+// hammer Gofile's guest rate limiter or balloon memory. FLATTEN_MAX_FOLDERS
+// costs a real request each (paced below, but still a real cost) — sized
+// for flattening an entire large library root (100+ collections, each with
+// a little nesting of their own) in one go, not just a single collection.
+// FLATTEN_MAX_FILES costs nothing extra to raise — every file is already
+// present in a response a folder request already paid for — so it's sized
+// generously as a pure memory/sanity ceiling, not a rate-limit concern.
+const FLATTEN_MAX_FOLDERS = 400;
+const FLATTEN_MAX_FILES = 10_000;
 const FLATTEN_CONCURRENCY = 3;
 // Paced even on the happy path — spreads requests out instead of firing
 // batches back-to-back, so a big collection stays under Gofile's radar
@@ -119,6 +133,40 @@ function loadFlattenCache(contentId: string): PersistedFlatten | null {
   }
 }
 
+// One file per folder ever flattened, with no expiry — fine at personal-
+// library scale, but nothing was ever deleting these, so a long-lived
+// install browsing many different folders over time would grow this
+// directory forever. Capped and pruned the same way the client's IndexedDB
+// caches already are: check occasionally (not on every save), drop the
+// least-recently-updated files once there are too many.
+const MAX_FLATTEN_CACHE_FILES = 300;
+const PRUNE_FLATTEN_CACHE_EVERY_N_SAVES = 20;
+let flattenSaveCount = 0;
+
+function pruneFlattenCacheIfNeeded(): void {
+  try {
+    const files = readdirSync(CACHE_DIR).filter(
+      (f) => f.startsWith('flatten-') && f.endsWith('.json'),
+    );
+    if (files.length <= MAX_FLATTEN_CACHE_FILES) return;
+    const withMtime = files.map((name) => {
+      const path = join(CACHE_DIR, name);
+      return { path, mtime: statSync(path).mtimeMs };
+    });
+    withMtime.sort((a, b) => a.mtime - b.mtime); // oldest first
+    const excess = withMtime.length - MAX_FLATTEN_CACHE_FILES;
+    for (let i = 0; i < excess; i++) {
+      try {
+        unlinkSync(withMtime[i]!.path);
+      } catch {
+        /* ignore — already gone, or a permissions blip; not worth surfacing */
+      }
+    }
+  } catch {
+    /* CACHE_DIR may not exist yet, or listing failed — nothing to prune either way */
+  }
+}
+
 function saveFlattenCache(contentId: string, data: PersistedFlatten): void {
   try {
     if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true });
@@ -126,6 +174,9 @@ function saveFlattenCache(contentId: string, data: PersistedFlatten): void {
   } catch (err) {
     console.warn('[gofile] Could not persist flatten cache to disk:', err);
   }
+
+  flattenSaveCount += 1;
+  if (flattenSaveCount % PRUNE_FLATTEN_CACHE_EVERY_N_SAVES === 0) pruneFlattenCacheIfNeeded();
 }
 
 // Deliberately NOT `loadPersistedToken()` called eagerly here: ES module

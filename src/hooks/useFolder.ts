@@ -2,17 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import type { ApiErrorBody, FolderResponse } from '../types';
 import { FolderFetchError } from '../types';
 import { getGofileToken } from '../lib/storage';
+import { fetchFolderDirect } from '../lib/gofileDirect';
 
-async function fetchFolder(
+async function fetchFolderViaServer(
   id: string,
-  passwordHash?: string,
-  accountToken?: string,
+  passwordHash: string | undefined,
+  token: string,
 ): Promise<FolderResponse> {
   const params = new URLSearchParams();
   if (passwordHash) params.set('password', passwordHash);
   const qs = params.toString();
   const headers: HeadersInit = {};
-  const token = accountToken ?? getGofileToken();
   if (token) headers['X-Gofile-Token'] = token;
 
   const res = await fetch(
@@ -36,6 +36,31 @@ async function fetchFolder(
   }
 
   return (await res.json()) as FolderResponse;
+}
+
+/** Tries a direct browser→Gofile request first — a plain server-side fetch
+ * gets rate-limited/unauthorized far more readily than the identical
+ * request from a real browser tab (confirmed side by side: the server path
+ * hit 401→429 on a completely fresh guest session while a direct browser
+ * request to the same folder succeeded instantly). Falls back to the
+ * existing server-proxied route only if the direct call itself throws
+ * (network/CORS surprise), not on a Gofile-side error the direct path
+ * already reported correctly (not_found/password/etc. are real answers,
+ * not failures to fall back from). */
+async function fetchFolder(
+  id: string,
+  passwordHash?: string,
+  accountToken?: string,
+): Promise<FolderResponse> {
+  const token = accountToken ?? getGofileToken();
+  try {
+    return await fetchFolderDirect(id, passwordHash, token || undefined);
+  } catch (err) {
+    if (err instanceof FolderFetchError && err.code !== 'unknown') {
+      throw err;
+    }
+    return fetchFolderViaServer(id, passwordHash, token);
+  }
 }
 
 /** Single-level folder fetch. For subfolder-flattened views, see useFolderStream. */
